@@ -15,8 +15,10 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,8 +27,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 
 
-
-public class CouchdbConnector{
+public class CouchdbConnector {
 
     private static Gson gson = new Gson();
 
@@ -38,7 +39,8 @@ public class CouchdbConnector{
 
     DefaultHttpClient httpclient = new DefaultHttpClient();
 
-    public CouchdbConnector(String ip, String port, String dbName, String userName, String userPassword){
+
+    public CouchdbConnector(String ip, String port, String dbName, String userName, String userPassword) {
         this.ip = ip;
         this.port = port;
         this.dbName = dbName;
@@ -47,7 +49,7 @@ public class CouchdbConnector{
     }
 
 
-    public void write(Object obj) throws IllegalArgumentException, IOException{
+    public void write(Object obj) throws IllegalArgumentException, IOException {
 
         String json = gson.toJson(obj);
         //System.out.println(json);
@@ -56,127 +58,89 @@ public class CouchdbConnector{
     }
 
 
-    public void writeJson(String json) throws IllegalArgumentException, IOException{
-        
-		//We need it to make PUT		
-		String uuid;
-		//request to get uuid
+    public void writeJson(String json) throws IllegalArgumentException, IOException {
+
+        //We need it to make PUT
+        String uuid;
+        //request to get uuid
         String request = "http://" + userName + ":" + userPassword + "@"
                 + ip + ":" + port + "/_uuids";
         //System.out.println(request);
 
-		
+
         HttpGet httpGet = new HttpGet(request);
-        try{
+        try {
             HttpResponse response1 = httpclient.execute(httpGet);
             String reasonPhrase = response1.getStatusLine().getReasonPhrase();
             //System.out.println(reasonPhrase);
-            if( !"OK".equals(response1.getStatusLine().getReasonPhrase()) ){
+            if (!"OK".equals(response1.getStatusLine().getReasonPhrase())) {
                 throw new IOException("reasonPhrase: " + reasonPhrase);
             }
             HttpEntity entity1 = response1.getEntity();
-            try{
+            try {
                 Scanner scanner = new Scanner(entity1.getContent());
-                try{
+                try {
                     String tmp = scanner.next();
                     //System.out.println(tmp);
-                    uuid = tmp.substring(tmp.indexOf("[") + 2,tmp.indexOf("]")-1);
+                    uuid = tmp.substring(tmp.indexOf("[") + 2, tmp.indexOf("]") - 1);
                     //System.out.println(uuid);
-                }finally{
+                } finally {
                     scanner.close();
                 }
-            }finally{
+            } finally {
                 EntityUtils.consume(entity1);
             }
-        }finally{
+        } finally {
             httpGet.releaseConnection();
         }
 
-        request = "http://" + userName + ":" + userPassword + "@"+ ip + ":" + port + "/" + dbName + "/" + uuid;
+        request = "http://" + userName + ":" + userPassword + "@" + ip + ":" + port + "/" + dbName + "/" + uuid;
         //System.out.println(request);
 
         HttpPut httpPut = new HttpPut(request);
-        try{
-            StringEntity entity2 = new StringEntity( json, StandardCharsets.UTF_8);
+        try {
+            StringEntity entity2 = new StringEntity(json, StandardCharsets.UTF_8);
             httpPut.setEntity(entity2);
             HttpResponse response1 = httpclient.execute(httpPut);
             String reasonPhrase = response1.getStatusLine().getReasonPhrase();
             //System.out.println(reasonPhrase);
-            if( !"Created".equals(response1.getStatusLine().getReasonPhrase()) ){
+            if (!"Created".equals(response1.getStatusLine().getReasonPhrase())) {
                 System.out.println(response1.getStatusLine());
                 throw new IOException("reasonPhrase:" + reasonPhrase);
             }
             //System.out.println(response1.getStatusLine());
-        }finally{
+        } finally {
             httpPut.releaseConnection();
         }
     }
 
 
-    public <T> void writeBulk(List<T> list)throws IOException{
+    public <T> void writeBulk(List<T> list) throws IOException {
 
-        String request = "http://" + userName + ":" + userPassword + "@"
-                + ip + ":" + port + "/" + dbName + "/_bulk_docs";
-        //System.out.println(request);
+        List<String> jsons = new ArrayList<>(list.size());
 
-        StringBuilder sb = new StringBuilder( "{\"docs\":[" );
-
-        Iterator<T> it = list.iterator();
-        if( it.hasNext() ){
-            sb.append(gson.toJson(it.next()));
-        }
-        while( it.hasNext() ){
-            sb.append("," + gson.toJson(it.next()));
-        }
-        sb.append("]}");
-        String json = sb.toString();
-
-        //System.out.println(json);
-
-
-
-        StringEntity entity = new StringEntity( json, StandardCharsets.UTF_8);
-
-        HttpPost httpPost = new HttpPost(request);
-        try{
-            httpPost.setEntity(entity);
-            httpPost.setHeader("Content-Type", "application/json");
-            HttpResponse response = httpclient.execute(httpPost);
-            String reasonPhrase = response.getStatusLine().getReasonPhrase();
-            //System.out.println(reasonPhrase);
-            if( !"Created".equals(response.getStatusLine().getReasonPhrase()) ){
-                throw new IOException("reasonPhrase: " + reasonPhrase);
-            }
-
-            /*
-            try{
-                Scanner sc = new Scanner(response.getEntity().getContent());
-                while( sc.hasNext() ) System.out.println(sc.next());
-            }catch (Exception e) {
-                e.printStackTrace();
-            }
-            */
-
-        }finally{
-            httpPost.releaseConnection();
+        for(T obj : list){
+            jsons.add(gson.toJson(obj));
         }
 
+        writeBulkJsons(jsons);
 
     }
 
 
-    public void writeBulkJsons(List<String> jsons)throws IOException {
+    public void writeBulkJsons(List<String> jsons) throws IOException {
+
         String request = "http://" + userName + ":" + userPassword + "@"
                 + ip + ":" + port + "/" + dbName + "/_bulk_docs";
         //System.out.println(request);
 
-        StringBuilder sb = new StringBuilder( "{\"docs\":[" );
+        StringBuilder sb = new StringBuilder("{\"docs\":[");
 
         Iterator<String> it = jsons.iterator();
-        if( it.hasNext() ){
+        if (it.hasNext()) {
             sb.append(it.next());
         }
-        while( it.hasNext() ){
+        while (it.hasNext()) {
             sb.append("," + it.next());
         }
         sb.append("]}");
@@ -184,16 +148,16 @@ public class CouchdbConnector{
 
         //System.out.println(json);
 
-        StringEntity entity = new StringEntity( json, StandardCharsets.UTF_8);
+        StringEntity entity = new StringEntity(json, StandardCharsets.UTF_8);
 
         HttpPost httpPost = new HttpPost(request);
-        try{
+        try {
             httpPost.setEntity(entity);
             httpPost.setHeader("Content-Type", "application/json");
             HttpResponse response = httpclient.execute(httpPost);
             String reasonPhrase = response.getStatusLine().getReasonPhrase();
             //System.out.println(reasonPhrase);
-            if( !"Created".equals(response.getStatusLine().getReasonPhrase()) ){
+            if (!"Created".equals(response.getStatusLine().getReasonPhrase())) {
                 throw new IOException("reasonPhrase: " + reasonPhrase);
             }
 
@@ -206,12 +170,96 @@ public class CouchdbConnector{
             }
             */
 
-        }finally{
+        } finally {
             httpPost.releaseConnection();
         }
 
     }
 
+
+
+
+
+
+
+    /*
+    private static class AllDocsResponse<T>{
+
+        private static class ResponseValue{
+            private String rev;
+        }
+
+
+        private static class ResponseDoc extends T{
+            private String _id;
+            private
+        }
+
+        private static class ResponseElement{
+            private String id;
+            private String key;
+            private ResponseValue value;
+            private ResponseDoc doc;
+        }
+
+        private int total_rows;
+        private int offset;
+        private List<ResponseElement> rows;
+
+
+        //private ResponseValue value;
+
+    }
+    */
+
+
+    public <T> List<T> readAll(Class<T> classOfT) throws IOException {
+
+
+        //Result
+        List<T> list = new ArrayList<>();
+
+        String request = "http://" + userName + ":" + userPassword + "@"
+                + ip + ":" + port + "/" + dbName + "/" + "/_all_docs"
+                + "?" + "include_docs=true";
+        //System.out.println(request);
+        HttpGet httpGet = new HttpGet(request);
+
+
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            HttpResponse response1 = httpclient.execute(httpGet);
+            String reasonPhrase = response1.getStatusLine().getReasonPhrase();
+            //System.out.println(reasonPhrase);
+            if (!"OK".equals(response1.getStatusLine().getReasonPhrase())) {
+                throw new IOException("reasonPhrase: " + reasonPhrase);
+            }
+            HttpEntity entity1 = response1.getEntity();
+            try {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(entity1.getContent()));
+                try {
+                    String tmp;
+                    while ((tmp = reader.readLine()) != null) {
+                        sb.append(tmp + "\n");
+                    }
+                } finally {
+                    reader.close();
+                }
+            } finally {
+                EntityUtils.consume(entity1);
+            }
+        } finally {
+            httpGet.releaseConnection();
+        }
+
+        System.out.println(sb.toString());
+
+
+
+
+        return list;
+    }
 
 
 }

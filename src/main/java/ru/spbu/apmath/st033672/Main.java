@@ -23,64 +23,148 @@ public class Main {
 
     }
 
-    public static void main(String[] args) {
+    private static class IntegerString {
+        private Integer intValue;
+        private String string;
 
-        System.out.printf("Hello World!\n");
+        public IntegerString(Integer inValue, String string) {
+            this.intValue = inValue;
+            this.string = string;
+        }
+    }
 
-        String ip = "217.197.2.6";
-        String port = "5984";
-        String dbName = "testdb";
-        String userName = "admin";
-        String userPassword = "admin";
+    private static String ip = "217.197.2.6";
+    private static String port = "5984";
+    private static String dbName = "testdb";
+    private static String userName = "admin";
+    private static String userPassword = "admin";
+
+    private static void test1(){
+
+        //1. Write Object
 
         CouchdbConnector connector = new CouchdbConnector(ip, port, dbName, userName, userPassword);
 
-        StringIntegerDouble object = new StringIntegerDouble("string1", 1, 1.0);
-
+        IntegerString object = new IntegerString(12, "object");
         try {
             connector.write(object);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void test2(){
+
+        //2. Write JSON
+
+        CouchdbConnector connector = new CouchdbConnector(ip, port, dbName, userName, userPassword);
 
 
         Gson gson = new Gson();
+        IntegerString object = new IntegerString(151, "string-json");
         String json = gson.toJson(object);
-
         try {
             connector.writeJson(json);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
 
-        int N = 5;
-        List<StringIntegerDouble> objectList = new ArrayList<>();
+    private static void test3(){
+
+        //3. Write list of objects
+
+        CouchdbConnector connector = new CouchdbConnector(ip, port, dbName, userName, userPassword);
+
+        int N = 7;
+        List<IntegerString> objectList = new ArrayList<>();
 
         for (int i = 0; i < N; ++i) {
-            objectList.add(new StringIntegerDouble("string" + (i + 2), i + 2, i + 2.0));
+            objectList.add(new IntegerString(i, "objects-"  + i));
         }
-
         try {
             connector.writeBulk(objectList);
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+    }
+
+    private static void test4(){
+
+        //4. Write JSONS
+
+        CouchdbConnector connector = new CouchdbConnector(ip, port, dbName, userName, userPassword);
 
         List<String> stringList = new ArrayList<>();
-
+        int N = 8;
+        Gson gson = new Gson();
         for (int i=0; i<N; ++i){
             stringList.add(gson.toJson(
-                    new StringIntegerDouble("string"+(100+i), 100+i, 100.0+i)));
+                    new IntegerString(i, "jsons-" + i)));
         }
-
         try {
             connector.writeBulkJsons(stringList);
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
 
+    private static void test5(){
+
+        //5. Reading all docs
+
+        CouchdbConnector connector = new CouchdbConnector(ip, port, dbName, userName, userPassword);
+
+        try {
+            List<IntegerString> list = connector.readAll(IntegerString.class);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public static void main(String[] args) throws IOException {
+
+
+        test1();
+
+        test2();
+
+        test3();
+
+        test4();
+
+        test5();
+
+
+    /*
+	String json = "{\"intValue\":1234, \"string\":\"string\", \"anstr\":\"string\"}";
+
+	Gson gson = new Gson();
+
+
+	IntegerString obj = gson.fromJson(json, IntegerString.class);
+	*/
+
+
+        //List<IntegerString> list = connector.readAll(IntegerString.class);
+        /*
+        for (int i = 0; i < 7; ++i) {
+            list.add(new IntegerString(i, "string-" + i));
+        }
+        */
+
+
+        //connector.writeBulk(list);
+
+
+        /*
+
+
+
+        */
 
     }
 
