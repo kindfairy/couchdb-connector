@@ -2,22 +2,18 @@ package ru.spbu.apmath.st033672;
 
 import com.google.gson.*;
 
+import com.google.gson.reflect.TypeToken;
 import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPut;
-import org.apache.http.client.ClientProtocolException;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
@@ -119,7 +115,7 @@ public class CouchdbConnector {
 
         List<String> jsons = new ArrayList<>(list.size());
 
-        for(T obj : list){
+        for (T obj : list) {
             jsons.add(gson.toJson(obj));
         }
 
@@ -177,52 +173,87 @@ public class CouchdbConnector {
     }
 
 
-
-
-
-
-
-    /*
-    private static class AllDocsResponse<T>{
-
-        private static class ResponseValue{
-            private String rev;
-        }
-
-
-        private static class ResponseDoc extends T{
-            private String _id;
-            private
-        }
-
-        private static class ResponseElement{
-            private String id;
-            private String key;
-            private ResponseValue value;
-            private ResponseDoc doc;
-        }
+    private static class ViewResponse {
 
         private int total_rows;
         private int offset;
+
         private List<ResponseElement> rows;
 
+        private static class ResponseElement {
 
-        //private ResponseValue value;
+            private String id;
+            private JsonElement key;
+            private JsonElement value;
+
+            public JsonElement getKey() {
+                return key;
+            }
+
+            public JsonElement getValue() {
+                return value;
+            }
+
+            @Override
+            public String toString() {
+                return "ResponseElement{" +
+                        "id='" + id + '\'' +
+                        ", key=" + key +
+                        ", value=" + value +
+                        '}';
+            }
+
+            public ResponseElement() {
+            }
+        }
+
+        public ViewResponse() {
+        }
+
+        @Override
+        public String toString() {
+            return "ViewResponse{" +
+                    "total_rows=" + total_rows +
+                    ", offset=" + offset +
+                    ", rows=" + rows +
+                    '}';
+        }
+
+        public <K, V> List<KeyValuePair<K, V>> getKeyValuePairs(Class<K> classOfKey, Class<V> classOfValue) {
+
+            List<KeyValuePair<K, V>> resultList = new ArrayList<>();
+
+            for (ResponseElement responseElement : rows) {
+                //System.out.println(responseElement.getKey().toString());
+                //System.out.println(responseElement.getValue().toString());
+
+                K key = gson.fromJson(responseElement.getKey(), classOfKey);
+                //System.out.println(key.toString());
+                V value = gson.fromJson(responseElement.getValue(), classOfValue);
+                //System.out.println(value.toString());
+                KeyValuePair<K, V> kvKeyValuePair = new KeyValuePair<K, V>(key, value);
+                resultList.add(kvKeyValuePair);
+
+            }
+            return resultList;
+        }
 
     }
-    */
 
 
-    public <T> List<T> readAll(Class<T> classOfT) throws IOException {
+    public <K, V> List<KeyValuePair<K, V>> getView(Class<K> classOfKey, Class<V> classOfValue,
+                   String ddName, String viewName, boolean reduce, int skip, int limit) throws IOException {
 
-
-        //Result
-        List<T> list = new ArrayList<>();
 
         String request = "http://" + userName + ":" + userPassword + "@"
-                + ip + ":" + port + "/" + dbName + "/" + "/_all_docs"
-                + "?" + "include_docs=true";
-        //System.out.println(request);
+                + ip + ":" + port + "/" + dbName + "/"
+                + "_design/" + ddName + "/_view/" + viewName
+                + "?" + "reduce=" + Boolean.toString(reduce)
+                + "&" + "skip=" + Integer.toString(skip)
+                + "&" + "limit=" + Integer.toString(limit);
+
+
+        System.out.println(request);
         HttpGet httpGet = new HttpGet(request);
 
 
@@ -253,12 +284,89 @@ public class CouchdbConnector {
             httpGet.releaseConnection();
         }
 
-        System.out.println(sb.toString());
+        String responseJson = sb.toString();
+//        System.out.println("Response JSON: \n");
+//        System.out.println(responseJson);
+//        System.out.println("\n");
+
+        //------------------------------------------------------------------------------------------------
 
 
+        Gson gson = new Gson();
+        Type type = new TypeToken<ViewResponse>() {
+        }.getType();
+
+        ViewResponse viewResponse = gson.fromJson(responseJson, type);
+
+        System.out.println(viewResponse.toString());
+
+        //Result
+        List<KeyValuePair<K, V>> resultList = viewResponse.<K, V>getKeyValuePairs(classOfKey, classOfValue);
+
+        return resultList;
+    }
+
+    public <K, V> List<KeyValuePair<K, V>> getView(Class<K> classOfKey, Class<V> classOfValue,
+                           String ddName, String viewName, boolean reduce) throws IOException {
 
 
-        return list;
+        String request = "http://" + userName + ":" + userPassword + "@"
+                + ip + ":" + port + "/" + dbName + "/"
+                + "_design/" + ddName + "/_view/" + viewName
+                + "?" + "reduce=" + Boolean.toString(reduce);
+
+
+        System.out.println(request);
+        HttpGet httpGet = new HttpGet(request);
+
+
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            HttpResponse response1 = httpclient.execute(httpGet);
+            String reasonPhrase = response1.getStatusLine().getReasonPhrase();
+            //System.out.println(reasonPhrase);
+            if (!"OK".equals(response1.getStatusLine().getReasonPhrase())) {
+                throw new IOException("reasonPhrase: " + reasonPhrase);
+            }
+            HttpEntity entity1 = response1.getEntity();
+            try {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(entity1.getContent()));
+                try {
+                    String tmp;
+                    while ((tmp = reader.readLine()) != null) {
+                        sb.append(tmp + "\n");
+                    }
+                } finally {
+                    reader.close();
+                }
+            } finally {
+                EntityUtils.consume(entity1);
+            }
+        } finally {
+            httpGet.releaseConnection();
+        }
+
+        String responseJson = sb.toString();
+//        System.out.println("Response JSON: \n");
+//        System.out.println(responseJson);
+//        System.out.println("\n");
+
+        //------------------------------------------------------------------------------------------------
+
+
+        Gson gson = new Gson();
+        Type type = new TypeToken<ViewResponse>() {
+        }.getType();
+
+        ViewResponse viewResponse = gson.fromJson(responseJson, type);
+
+        System.out.println(viewResponse.toString());
+
+        //Result
+        List<KeyValuePair<K, V>> resultList = viewResponse.<K, V>getKeyValuePairs(classOfKey, classOfValue);
+
+        return resultList;
     }
 
 
