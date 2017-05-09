@@ -61,10 +61,10 @@ public class Main {
 //        test3();
 //
 //        test4();
+//
+//        test6();
 
-        test6();
-
-
+        test7();
 
 
 
@@ -189,7 +189,21 @@ public class Main {
 
     }
 
+    private static void test7(){
 
+        CouchdbConnector connector = new CouchdbConnector(ip, port, "articles", userName, userPassword);
+
+        int size = 0;
+
+        try {
+            size = connector.getViewSize("tfidf","wodd-view", false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println(size);
+
+    }
 
 
 }

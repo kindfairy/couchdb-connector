@@ -238,6 +238,10 @@ public class CouchdbConnector {
             return resultList;
         }
 
+        public int getTotal_rows(){
+            return total_rows;
+        }
+
     }
 
 
@@ -306,6 +310,7 @@ public class CouchdbConnector {
         return resultList;
     }
 
+
     public <K, V> List<KeyValuePair<K, V>> getView(Class<K> classOfKey, Class<V> classOfValue,
                            String ddName, String viewName, boolean reduce) throws IOException {
 
@@ -369,5 +374,57 @@ public class CouchdbConnector {
         return resultList;
     }
 
+
+
+
+
+
+
+    public int getViewSize(String ddName, String viewName, boolean reduce) throws IOException {
+
+        String request = "http://" + userName + ":" + userPassword + "@"
+                + ip + ":" + port + "/" + dbName + "/"
+                + "_design/" + ddName + "/_view/" + viewName
+                + "?" + "reduce=" + Boolean.toString(reduce)
+                + "&" + "limit=" + Integer.toString(0);
+        //System.out.println(request);
+
+        StringBuilder sb = new StringBuilder();
+
+        HttpGet httpGet = new HttpGet(request);
+        try {
+            HttpResponse response1 = httpclient.execute(httpGet);
+            String reasonPhrase = response1.getStatusLine().getReasonPhrase();
+            //System.out.println(reasonPhrase);
+            if (!"OK".equals(response1.getStatusLine().getReasonPhrase())) {
+                throw new IOException("reasonPhrase: " + reasonPhrase);
+            }
+            HttpEntity entity1 = response1.getEntity();
+            try {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(entity1.getContent()));
+                try {
+                    String tmp;
+                    while ((tmp = reader.readLine()) != null) {
+                        sb.append(tmp + "\n");
+                    }
+                } finally {
+                    reader.close();
+                }
+            } finally {
+                EntityUtils.consume(entity1);
+            }
+        } finally {
+            httpGet.releaseConnection();
+        }
+
+        //System.out.println(sb.toString());
+
+
+
+        String json = sb.toString();
+        ViewResponse viewResponse = gson.fromJson(json, ViewResponse.class);
+
+        return viewResponse.getTotal_rows();
+    }
 
 }
