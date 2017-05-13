@@ -62,7 +62,7 @@ public class Main {
 //
 //        test4();
 //
-//        test6();
+        test6();
 
         test7();
 
@@ -157,13 +157,13 @@ public class Main {
 
         //6. Reading all docs
 
-        CouchdbConnector connector = new CouchdbConnector(ip, port, "articles", userName, userPassword);
+        CouchdbConnector connector = new CouchdbConnector(ip, port, "articles2", userName, userPassword);
 
 
         List<KeyValuePair<Article, Article>> list = new ArrayList<>();
         try {
-            list = connector.<Article, Article>getView(Article.class, Article.class, "tfidf",
-                    "wodd-view", false, 0, 10);
+            list = connector.<Article, Article>getView(Article.class, Article.class, "dd",
+                    "alldocs", false, 0, 1);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -174,11 +174,11 @@ public class Main {
 
 
 
-
+        connector = new CouchdbConnector(ip, port, "articles2", userName, userPassword);
         list = new ArrayList<>();
         try {
-            list = connector.<Article, Article>getView(Article.class, Article.class, "tfidf",
-                    "wodd-view", false);
+            list = connector.<Article, Article>getView(Article.class, Article.class, "dd",
+                    "alldocs", false);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -196,7 +196,7 @@ public class Main {
         int size = 0;
 
         try {
-            size = connector.getViewSize("tfidf","wodd-view", false);
+            size = connector.getViewSize("dd","alldocs", false);
         } catch (IOException e) {
             e.printStackTrace();
         }
